@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"log"
 
 	firebase "firebase.google.com/go/v4"
 	_ "firebase.google.com/go/v4/auth"
 	env "github.com/Netflix/go-env"
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	fauna "github.com/fauna/faunadb-go/faunadb"
 	"google.golang.org/api/option"
 )
@@ -59,6 +61,28 @@ func getUID(idToken string) (string, error) {
 	return msg, nil
 }
 
+type myReturn struct {
+	Response string `json:"response"`
+}
+
+func handle(ctx context.Context, name events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	headers := map[string]string{"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept"}
+
+	code := 200
+	response, error := json.Marshal(myReturn{Response: "Hello, " + name.Body})
+	if error != nil {
+		log.Println(error)
+		response = []byte("Internal Server Error")
+		code = 500
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: code,
+		Headers:    headers,
+		Body:       string(response),
+	}, nil
+}
+
 func main() {
 	var err error
 	_, err = env.UnmarshalFromEnviron(&e)
@@ -74,6 +98,6 @@ func main() {
 	}
 	client = fauna.NewFaunaClient(e.FaunaSecret)
 
-	fmt.Println(loginUser("1234"))
+	lambda.Start(handle)
 
 }
